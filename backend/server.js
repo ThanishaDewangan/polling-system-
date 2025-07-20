@@ -141,6 +141,7 @@ io.on('connection', (socket) => {
 
   // Teacher requests poll history
   socket.on('get_poll_history', () => {
+    console.log('Sending poll history:', pollHistory);
     socket.emit('poll_history', pollHistory);
   });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import socket from '../services/socketService';
@@ -27,6 +27,7 @@ const TeacherPage = () => {
   const [activeTab, setActiveTab] = useState('chat');
   const [studentAnswers, setStudentAnswers] = useState({});
   const [chatTabActive, setChatTabActive] = useState(true);
+  const chatPopupRef = useRef(null);
 
   useEffect(() => {
     // Set teacher status
@@ -51,6 +52,7 @@ const TeacherPage = () => {
     
     // Listen for poll history
     socket.on('poll_history', (history) => {
+      console.log('Received poll history:', history);
       dispatch(setPollHistory(history));
     });
     
@@ -85,6 +87,24 @@ const TeacherPage = () => {
       socket.off('student_answer');
     };
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!showChat) return;
+    function handleClickOutside(event) {
+      if (chatPopupRef.current && !chatPopupRef.current.contains(event.target)) {
+        setShowChat(false);
+      }
+    }
+    function handleEscape(event) {
+      if (event.key === 'Escape') setShowChat(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showChat]);
 
   const handleAddOption = () => {
     setOptions([...options, '']);
@@ -167,6 +187,12 @@ const TeacherPage = () => {
     setOptionsCorrect([false, false]);
     dispatch(setActivePoll(null));
     setStudentAnswers({});
+  };
+
+  // Add this handler to fetch poll history and show modal
+  const handleShowHistory = () => {
+    socket.emit('get_poll_history');
+    setShowHistory(true);
   };
 
   if (!activePoll) {
@@ -335,7 +361,7 @@ const TeacherPage = () => {
     <div className="container">
       <button 
         className="view-poll-history-btn"
-        onClick={() => setShowHistory(true)}
+        onClick={handleShowHistory}
       >
         View Poll History
       </button>
@@ -423,7 +449,7 @@ const TeacherPage = () => {
       </div>
       
       {showChat && (
-        <div className="chat-popup">
+        <div className="chat-popup" ref={chatPopupRef}>
           <div className="chat-tabs">
             <div 
               className={`chat-tab ${chatTabActive ? 'active' : ''}`}
@@ -450,11 +476,15 @@ const TeacherPage = () => {
                     <div className="chat-message-sender">{msg.sender}</div>
                   )}
                   <div className="chat-message-text">{msg.text}</div>
+                  <div className="chat-message-timestamp" style={{fontSize: '10px', color: '#888', marginTop: '2px'}}>
+                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="participants-list">
+              <div className="participant-item"><b>Teacher</b></div>
               {Object.values(students).length > 0 ? (
                 Object.values(students).map((student, index) => (
                   <div key={index} className="participant-item">{student.name}</div>
@@ -486,6 +516,10 @@ const TeacherPage = () => {
       <div 
         className="chat-icon"
         onClick={() => setShowChat(!showChat)}
+        tabIndex={0}
+        aria-label="Open chat"
+        role="button"
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowChat(!showChat); }}
       >
         💬
       </div>
