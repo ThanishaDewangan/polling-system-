@@ -30,6 +30,8 @@ const StudentPage = () => {
     if (storedName) {
       dispatch(setStudentName(storedName));
       socket.emit('register_student', { name: storedName });
+      // Force fetch the current poll in case student missed it
+      socket.emit('get_current_poll');
     }
     
     // Listen for new polls

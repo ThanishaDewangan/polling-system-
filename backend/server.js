@@ -178,6 +178,13 @@ io.on('connection', (socket) => {
     console.log('Chat message:', message);
   });
 
+  // Respond to forced poll fetch from student
+  socket.on('get_current_poll', () => {
+    if (activePoll) {
+      socket.emit('new_poll', activePoll);
+    }
+  });
+
   // Handle disconnection
   socket.on('disconnect', () => {
     if (students[socket.id]) {
